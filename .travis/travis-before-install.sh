@@ -43,6 +43,7 @@ DOCKER_OPTS="\
 -D \
 -H=unix:///var/run/docker.sock \
 -H=tcp://0.0.0.0:${HOST_PORT}  \
+"
 EOF
 
 sudo cat /etc/default/docker
