@@ -25,6 +25,7 @@ sudo -E apt-cache policy docker-engine
 ./.travis/get-docker-com.sh
 
 sudo -E stop docker
+
 #mkdir "${HOME}/.cache" || :
 #pushd "${HOME}/.cache"
 # wget -N "https://apt.dockerproject.org/repo/pool/main/d/docker-engine/docker-engine_${DOCKER_VERSION}_amd64.deb"
@@ -33,6 +34,9 @@ sudo -E stop docker
 #popd
 #rm -f "src/test/resources/logback.xml"
 mv "src/test/resources/travis-logback.xml" "src/test/resources/logback.xml"
+
+# https://github.com/docker/docker/issues/18113
+sudo rm /var/lib/docker/network/files/local-kv.db
 
 sudo cat /etc/default/docker
 
