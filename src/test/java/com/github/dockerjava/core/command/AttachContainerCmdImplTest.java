@@ -1,5 +1,6 @@
 package com.github.dockerjava.core.command;
 
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.apache.commons.lang.StringUtils.isEmpty;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
@@ -12,6 +13,7 @@ import java.io.InputStream;
 import java.lang.reflect.Method;
 import java.util.concurrent.TimeUnit;
 
+import com.github.dockerjava.api.command.InspectContainerResponse;
 import org.apache.commons.codec.binary.StringUtils;
 import org.testng.ITestResult;
 import org.testng.SkipException;
@@ -71,7 +73,51 @@ public class AttachContainerCmdImplTest extends AbstractDockerClientTest {
         };
 
         dockerClient.attachContainerCmd(container.getId()).withStdErr(true).withStdOut(true).withFollowStream(true)
-                .withLogs(true).exec(callback).awaitCompletion(30, TimeUnit.SECONDS);
+                .withLogs(true).exec(callback).awaitCompletion(30, SECONDS);
+        callback.close();
+
+        assertThat(callback.toString(), containsString(snippet));
+    }
+
+    @Test
+    public void attachContainerWithStdin() throws Exception {
+
+        String snippet = "hello world";
+
+        CreateContainerResponse container = dockerClient.createContainerCmd("busybox")
+                .withCmd("/bin/sh", "-c", "sleep 1 && read line && echo $line")
+                .withTty(false)
+                .withStdinOpen(true)
+                .exec();
+
+        LOG.info("Created container: {}", container.toString());
+        assertThat(container.getId(), not(isEmptyString()));
+
+        dockerClient.startContainerCmd(container.getId()).exec();
+
+        Thread.sleep(SECONDS.toMillis(3)); //wait bash initialisation
+
+        InspectContainerResponse inspectContainerResponse = dockerClient.inspectContainerCmd(container.getId()).exec();
+
+        assertTrue(inspectContainerResponse.getState().getRunning());
+
+        AttachContainerTestCallback callback = new AttachContainerTestCallback() {
+            @Override
+            public void onNext(Frame frame) {
+                assertEquals(frame.getStreamType(), StreamType.STDOUT);
+                super.onNext(frame);
+            }
+        };
+
+        InputStream stdin = new ByteArrayInputStream((snippet + "\n").getBytes());
+
+        dockerClient.attachContainerCmd(container.getId())
+                .withStdErr(true)
+                .withStdOut(true)
+                .withFollowStream(true)
+                .withStdIn(stdin)
+                .exec(callback)
+                .awaitCompletion(15, SECONDS);
         callback.close();
 
         assertThat(callback.toString(), containsString(snippet));
@@ -105,7 +151,7 @@ public class AttachContainerCmdImplTest extends AbstractDockerClientTest {
                 .withStdOut(true)
                 .withFollowStream(true)
                 .exec(callback)
-                .awaitCompletion(15, TimeUnit.SECONDS);
+                .awaitCompletion(15, SECONDS);
         callback.close();
 
         System.out.println("log: " + callback.toString());
@@ -138,7 +184,7 @@ public class AttachContainerCmdImplTest extends AbstractDockerClientTest {
         InputStream stdin = new ByteArrayInputStream("".getBytes());
 
         dockerClient.attachContainerCmd(container.getId()).withStdErr(true).withStdOut(true).withFollowStream(true)
-                .withLogs(true).withStdIn(stdin).exec(callback).awaitCompletion(30, TimeUnit.SECONDS);
+                .withLogs(true).withStdIn(stdin).exec(callback).awaitCompletion(30, SECONDS);
         callback.close();
     }
 
